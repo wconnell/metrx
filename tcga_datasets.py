@@ -9,12 +9,12 @@ class TCGA(Dataset):
     Stores data as tensors for iterating
     """
     
-    def __init__(self, root_dir, samples, train):
+    def __init__(self, root_dir, samples, train, target):
         self.root_dir = root_dir
         self.samples = samples
         self.train = train
         self.data = self.load_tcga_rna(self.root_dir, self.samples)
-        self.labels = self.samples['Sample Type'].cat.codes.values.astype('int')
+        self.labels = self.samples[target].cat.codes.values.astype('int')
         
     def __getitem__(self, index):
         return torch.from_numpy(self.data.iloc[index].values).float(), self.labels[index]

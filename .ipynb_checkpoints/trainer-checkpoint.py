@@ -13,6 +13,9 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
     Siamese network: Siamese loader, siamese model, contrastive loss
     Online triplet learning: batch loader, embedding model, online triplet loss
     """
+    train_loss_total = []
+    val_loss_total = []
+    
     for epoch in range(0, start_epoch):
         scheduler.step()
 
@@ -20,6 +23,7 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
 
         # Train stage
         train_loss, metrics = train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, metrics)
+        train_loss_total.append(train_loss)
 
         message = 'Epoch: {}/{}. Train set: Average loss: {:.4f}'.format(epoch + 1, n_epochs, train_loss)
         for metric in metrics:
@@ -27,6 +31,7 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
 
         val_loss, metrics = test_epoch(val_loader, model, loss_fn, cuda, metrics)
         val_loss /= len(val_loader)
+        val_loss_total.append(val_loss)
 
         message += '\nEpoch: {}/{}. Validation set: Average loss: {:.4f}'.format(epoch + 1, n_epochs,
                                                                                  val_loss)
@@ -34,8 +39,10 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
             message += '\t{}: {}'.format(metric.name(), metric.value())
 
         scheduler.step()
-        
+
         print(message)
+    
+    return train_loss_total, val_loss_total
 
 
 def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, metrics):
@@ -57,7 +64,7 @@ def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, met
 
 
         optimizer.zero_grad()
-        outputs = model(*data)
+        outputs = model(*data, False)
 
         if type(outputs) not in (tuple, list):
             outputs = (outputs,)
@@ -88,6 +95,7 @@ def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, met
             losses = []
 
     total_loss /= (batch_idx + 1)
+#    torch.cuda.empty_cache()
     return total_loss, metrics
 
 
@@ -106,7 +114,7 @@ def test_epoch(val_loader, model, loss_fn, cuda, metrics):
                 if target is not None:
                     target = target.cuda()
 
-            outputs = model(*data)
+            outputs = model(*data, False)
 
             if type(outputs) not in (tuple, list):
                 outputs = (outputs,)
