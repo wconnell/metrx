@@ -64,7 +64,7 @@ def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, met
 
 
         optimizer.zero_grad()
-        outputs = model(*data, False)
+        outputs = model(*data)
 
         if type(outputs) not in (tuple, list):
             outputs = (outputs,)
@@ -114,7 +114,7 @@ def test_epoch(val_loader, model, loss_fn, cuda, metrics):
                 if target is not None:
                     target = target.cuda()
 
-            outputs = model(*data, False)
+            outputs = model(*data)
 
             if type(outputs) not in (tuple, list):
                 outputs = (outputs,)
