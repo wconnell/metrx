@@ -50,3 +50,15 @@ class SiameseNet(nn.Module):
     def get_embedding(self, x):
         return self.embedding_net(x)
     
+    def get_loss(self, x1, x2, target, loss_fn):
+        outputs = self.forward(x1, x2)
+        loss_inputs = outputs
+        
+        if target is not None:
+            target = (target,)
+            loss_inputs += target
+            
+        loss_outputs = loss_fn(*loss_inputs)
+        loss = loss_outputs[0] if type(loss_outputs) in (tuple, list) else loss_outputs
+        return loss
+    
