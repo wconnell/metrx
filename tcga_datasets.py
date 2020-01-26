@@ -14,7 +14,8 @@ class TCGA(Dataset):
         self.samples = samples
         self.train = train
         self.data = self.load_tcga_rna(self.root_dir, self.samples)
-        self.labels = self.samples[target].cat.codes.values.astype('int')
+        #self.labels = self.samples[target].cat.codes.values.astype('int')
+        self.labels = self.samples[target].to_numpy()
         
     def __getitem__(self, index):
         return torch.from_numpy(self.data.iloc[index].values).float(), self.labels[index]
@@ -72,14 +73,14 @@ class SiameseTCGA(Dataset):
             random_state = np.random.RandomState(29)
 
             positive_pairs = [[i,
-                               random_state.choice(self.label_to_indices[self.test_labels[i].item()]),
+                               random_state.choice(self.label_to_indices[self.test_labels[i]]),
                                1]
                               for i in range(0, len(self.test_data), 2)]
 
             negative_pairs = [[i,
                                random_state.choice(self.label_to_indices[
                                                        np.random.choice(
-                                                           list(self.labels_set - set([self.test_labels[i].item()]))
+                                                           list(self.labels_set - set([self.test_labels[i]]))
                                                        )
                                                    ]),
                                0]
@@ -89,7 +90,7 @@ class SiameseTCGA(Dataset):
     def __getitem__(self, index):
         if self.train:
             target = np.random.randint(0, 2)
-            img1, label1 = self.train_data[index], self.train_labels[index].item()
+            img1, label1 = self.train_data[index], self.train_labels[index]
             if target == 1:
                 siamese_index = index
                 while siamese_index == index:
