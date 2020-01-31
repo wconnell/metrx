@@ -3,18 +3,26 @@ from torch.utils.data import Dataset
 import os
 import numpy as np
 import pandas as pd
+from sklearn import preprocessing
 
 class TCGA(Dataset):
     """
     Stores data as tensors for iterating
     """
     
-    def __init__(self, root_dir, samples, train, target):
+    def __init__(self, root_dir, samples, train, target, norm=False):
         self.root_dir = root_dir
         self.samples = samples
         self.train = train
         self.data = self.load_tcga_rna(self.root_dir, self.samples)
         self.labels = self.samples[target].cat.codes.values.astype('int')
+        self.labels_dict = {key:val for val,key in enumerate(samples[target].cat.categories.values)}
+        
+        if norm:
+            self.data = pd.DataFrame(preprocessing.normalize(self.data, axis=1), 
+                                     index=self.data.index, 
+                                     columns=self.data.columns)
+            
         
     def __getitem__(self, index):
         return torch.from_numpy(self.data.iloc[index].values).float(), self.labels[index]
@@ -38,7 +46,7 @@ class TCGA(Dataset):
                 print("{} not found".format(os.path.join(fid, fname)))
                 break
 
-        df = pd.concat(df_list)
+        df = pd.concat(df_list, sort=True)
         df.index = samples['Sample ID']
 
         return df
@@ -54,6 +62,7 @@ class SiameseTCGA(Dataset):
         self.train = tcga_dataset.train
         self.data = tcga_dataset.data
         self.labels = tcga_dataset.labels
+        self.labels_dict = tcga_dataset.labels_dict
 
         if self.train:
             self.train_labels = self.labels
