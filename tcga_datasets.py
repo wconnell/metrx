@@ -3,19 +3,26 @@ from torch.utils.data import Dataset
 import os
 import numpy as np
 import pandas as pd
+from sklearn import preprocessing
 
 class TCGA(Dataset):
     """
     Stores data as tensors for iterating
     """
     
-    def __init__(self, root_dir, samples, train, target):
+    def __init__(self, root_dir, samples, train, target, norm=False):
         self.root_dir = root_dir
         self.samples = samples
         self.train = train
         self.data = self.load_tcga_rna(self.root_dir, self.samples)
-        #self.labels = self.samples[target].cat.codes.values.astype('int')
-        self.labels = self.samples[target].to_numpy()
+        self.labels = self.samples[target].cat.codes.values.astype('int')
+        self.labels_dict = {key:val for val,key in enumerate(samples[target].cat.categories.values)}
+        
+        if norm:
+            self.data = pd.DataFrame(preprocessing.normalize(self.data, axis=1), 
+                                     index=self.data.index, 
+                                     columns=self.data.columns)
+            
         
     def __getitem__(self, index):
         return torch.from_numpy(self.data.iloc[index].values).float(), self.labels[index]
@@ -39,7 +46,7 @@ class TCGA(Dataset):
                 print("{} not found".format(os.path.join(fid, fname)))
                 break
 
-        df = pd.concat(df_list)
+        df = pd.concat(df_list, sort=True)
         df.index = samples['Sample ID']
 
         return df
@@ -55,6 +62,7 @@ class SiameseTCGA(Dataset):
         self.train = tcga_dataset.train
         self.data = tcga_dataset.data
         self.labels = tcga_dataset.labels
+        self.labels_dict = tcga_dataset.labels_dict
 
         if self.train:
             self.train_labels = self.labels
@@ -73,14 +81,14 @@ class SiameseTCGA(Dataset):
             random_state = np.random.RandomState(29)
 
             positive_pairs = [[i,
-                               random_state.choice(self.label_to_indices[self.test_labels[i]]),
+                               random_state.choice(self.label_to_indices[self.test_labels[i].item()]),
                                1]
                               for i in range(0, len(self.test_data), 2)]
 
             negative_pairs = [[i,
                                random_state.choice(self.label_to_indices[
                                                        np.random.choice(
-                                                           list(self.labels_set - set([self.test_labels[i]]))
+                                                           list(self.labels_set - set([self.test_labels[i].item()]))
                                                        )
                                                    ]),
                                0]
@@ -90,7 +98,7 @@ class SiameseTCGA(Dataset):
     def __getitem__(self, index):
         if self.train:
             target = np.random.randint(0, 2)
-            img1, label1 = self.train_data[index], self.train_labels[index]
+            img1, label1 = self.train_data[index], self.train_labels[index].item()
             if target == 1:
                 siamese_index = index
                 while siamese_index == index:

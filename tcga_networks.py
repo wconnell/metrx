@@ -60,5 +60,9 @@ class SiameseNet(nn.Module):
             
         loss_outputs = loss_fn(*loss_inputs)
         loss = loss_outputs[0] if type(loss_outputs) in (tuple, list) else loss_outputs
-        return loss
+        return loss.view(-1)
     
+    def get_dist(self, x1, x2, dist_fn):
+        outputs = self.forward(x1, x2)
+        return dist_fn(*outputs)
+        
