@@ -3,14 +3,13 @@ from torch.utils.data import Dataset
 import os
 import numpy as np
 import pandas as pd
-from sklearn import preprocessing
 
 class TCGA(Dataset):
     """
     Stores data as tensors for iterating
     """
     
-    def __init__(self, root_dir, samples, train, target, norm=False):
+    def __init__(self, root_dir, samples, train, target, log=False):
         self.root_dir = root_dir
         self.samples = samples
         self.train = train
@@ -18,10 +17,8 @@ class TCGA(Dataset):
         self.labels = self.samples[target].cat.codes.values.astype('int')
         self.labels_dict = {key:val for val,key in enumerate(samples[target].cat.categories.values)}
         
-        if norm:
-            self.data = pd.DataFrame(preprocessing.normalize(self.data, axis=1), 
-                                     index=self.data.index, 
-                                     columns=self.data.columns)
+        if log:
+            self.data = self.data.transform(np.log1p)
             
         
     def __getitem__(self, index):
@@ -62,6 +59,7 @@ class SiameseTCGA(Dataset):
         self.train = tcga_dataset.train
         self.data = tcga_dataset.data
         self.labels = tcga_dataset.labels
+        self.samples = tcga_dataset.samples
         self.labels_dict = tcga_dataset.labels_dict
 
         if self.train:

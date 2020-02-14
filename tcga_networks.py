@@ -5,16 +5,11 @@ from collections import OrderedDict
 
 
 class EmbeddingNet(nn.Module):
-    def __init__(self):
+    def __init__(self, n_features):
         super(EmbeddingNet, self).__init__()
-#         self.fc = nn.Sequential(nn.Linear(60483, 2000),
-#                                  nn.PReLU(),
-#                                  nn.Linear(2000, 500),
-#                                  nn.PReLU(),
-#                                  nn.Linear(500, 2)
-#                                )
+        self.n_features = n_features
         self.fc = nn.Sequential(OrderedDict([
-                                ('linear1', nn.Linear(60483, 2000)),
+                                ('linear1', nn.Linear(self.n_features, 2000)),
                                 ('relu1', nn.PReLU()),
                                 ('linear2', nn.Linear(2000, 500)),
                                 ('relu2', nn.PReLU()),
@@ -28,6 +23,7 @@ class EmbeddingNet(nn.Module):
                                 ('relu6', nn.PReLU()),
                                 ('linear7', nn.Linear(10, 2))
                                 ]))
+
 
     def forward(self, x):
         output = self.fc(x)
