@@ -35,7 +35,26 @@ def sns_plot_embeddings(embeddings, labels, classes, **kwargs):
                 s=100, alpha=kwargs['alpha'])
 
     
-def extract_embeddings(dataloader, model):
+def extract_embeddings(samples, target, model):
+    device = next(model.parameters()).device
+    cuda = torch.cuda.is_available()
+    with torch.no_grad():
+        model.eval()
+        assert len(samples) == len(target)
+        embeddings = np.zeros((len(samples), model.embedding_net.n_embedding))
+        labels = np.zeros(len(target))
+        k = 0
+        if cuda:
+            samples = samples.cuda(device=device.index)
+        if isinstance(model, torch.nn.DataParallel):
+            embeddings[k:k+len(samples)] = model.module.get_embedding(samples).data.cpu().numpy()
+        else:
+            embeddings[k:k+len(samples)] = model.get_embedding(samples).data.cpu().numpy()
+        labels[k:k+len(samples)] = target
+        k += len(samples)
+    return embeddings, labels
+    
+def extract_embeddings_loader(dataloader, model):
     cuda = torch.cuda.is_available()
     with torch.no_grad():
         model.eval()

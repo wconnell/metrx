@@ -4,111 +4,27 @@ import os
 import numpy as np
 import pandas as pd
 
-class TCGA(Dataset):
-    """
-    Stores data as tensors for iterating
-    """
-    
-    def __init__(self, root_dir, samples, meta_dict, train, target, log=False):
-        self.root_dir = root_dir
-        self.samples = samples
-        self.train = train
-        self.meta_dict = meta_dict
-        self.data = self.load_tcga_rna(self.root_dir, self.samples)
-        self.labels = self.samples[target].cat.codes.values.astype('int')
         
-        if log:
-            self.data = self.data.transform(np.log1p)
-            
-        
-    def __getitem__(self, index):
-        
-        return torch.from_numpy(self.data.iloc[index].values).float(), self.labels[index]
-        
-    def __len__(self):
-        return len(self.samples)
-    
-    def load_tcga_rna(self, root_dir, samples):
-        alt_dir = os.path.join(root_dir, "https:/api.gdc.cancer.gov/data/")
-        df_list = []
-        for fid,fname in zip(samples['File ID'], samples['File Name']):
-            if os.path.exists(os.path.join(root_dir, fid, fname)):
-                df_list.append(pd.read_csv(os.path.join(root_dir, fid, fname), sep="\t", index_col=0, header=None).T)
-            elif os.path.exists(os.path.join(alt_dir, fid, fname)):
-                df_list.append(pd.read_csv(os.path.join(alt_dir, fid, fname), sep="\t", index_col=0, header=None).T)
-            else:
-                print("{} not found".format(os.path.join(fid, fname)))
-                break
-        df = pd.concat(df_list, sort=True)
-        df.index = samples['Sample ID']
-        return df
-    
-    def featurize(self, HGNC, features='all', proteins_only=True):
-        """
-        Harmonizes gene features to HGNC IDs.
-        """
-        # downsample to pre-specified features
-        if features is not 'all':
-            assert isinstance(features, list)
-            HGNC = HGNC[HGNC['Approved symbol'].isin(features)]
-        # downsample to proteins
-        if proteins_only:
-            HGNC = HGNC.dropna(subset=['UniProt ID(supplied by UniProt)'])
-        # clean columns
-        parsed_cols = pd.DataFrame([ens[0] for ens in self.data.columns.str.split(".")],
-                                    columns=['ENSEMBL_ID'])
-        self.data.columns = parsed_cols['ENSEMBL_ID'].values
-        protein_overlap_idx = parsed_cols['ENSEMBL_ID'].isin(HGNC['Ensembl gene ID'].values).values
-        # downsample
-        self.data = self.data.loc[:,protein_overlap_idx]
-        # rename columns
-        ensembl_dict = dict(zip(HGNC['Ensembl gene ID'], HGNC['Approved symbol']))
-        self.data = self.data.rename(columns=ensembl_dict)
-    
-    
-class CCLE(Dataset):
-    """
-    Temporary dataset for CCLE data
-    """
-    
-    def __init__(self, data, samples, train, log=False):
-        self.samples = samples
-        self.train = train
-        self.data = data
-        self.labels = torch.zeros(len(data)).float()
-        if log:
-            self.data = self.data.transform(np.log1p)
-        
-    def __getitem__(self, index):
-        return torch.from_numpy(self.data.iloc[index].values).float(), self.labels[index]
-        
-    def __len__(self):
-        return len(self.samples)
-        
-        
-class SiameseTCGA(Dataset):
+class SiameseDataset(Dataset):
     """
     Train: For each sample creates randomly a positive or a negative pair
     Test: Creates fixed pairs for testing
     """
 
-    def __init__(self,  tcga_dataset):
-        self.train = tcga_dataset.train
-        self.data = tcga_dataset.data
-        self.labels = tcga_dataset.labels
-        self.samples = tcga_dataset.samples
-        self.meta_dict = tcga_dataset.meta_dict
+    def __init__(self, data, labels, train=False):
+        self.train = train
+        self.labels = labels
 
         if self.train:
             self.train_labels = self.labels
-            self.train_data = torch.from_numpy(self.data.values).float()
+            self.train_data = torch.from_numpy(data.values).float()
             self.labels_set = set(self.train_labels)
             self.label_to_indices = {label: np.where(self.train_labels == label)[0]
                                      for label in self.labels_set}
         else:
             # generate fixed pairs for testing
             self.test_labels = self.labels
-            self.test_data = torch.from_numpy(self.data.values).float()
+            self.test_data = torch.from_numpy(data.values).float()
             self.labels_set = set(self.test_labels)
             self.label_to_indices = {label: np.where(self.test_labels == label)[0]
                                      for label in self.labels_set}

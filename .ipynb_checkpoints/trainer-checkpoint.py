@@ -46,9 +46,10 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
 
 
 def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, metrics):
+    device = next(model.parameters()).device
     for metric in metrics:
         metric.reset()
-
+    
     model.train()
     losses = []
     total_loss = 0
@@ -58,9 +59,9 @@ def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, met
         if not type(data) in (tuple, list):
             data = (data,)
         if cuda:
-            data = tuple(d.cuda() for d in data)
+            data = tuple(d.cuda(device=device.index) for d in data)
             if target is not None:
-                target = target.cuda()
+                target = target.cuda(device=device.index)
 
         optimizer.zero_grad()
         outputs = model(*data)
@@ -99,6 +100,7 @@ def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, met
 
 
 def test_epoch(val_loader, model, loss_fn, cuda, metrics):
+    device = next(model.parameters()).device
     with torch.no_grad():
         for metric in metrics:
             metric.reset()
@@ -109,9 +111,9 @@ def test_epoch(val_loader, model, loss_fn, cuda, metrics):
             if not type(data) in (tuple, list):
                 data = (data,)
             if cuda:
-                data = tuple(d.cuda() for d in data)
+                data = tuple(d.cuda(device=device.index) for d in data)
                 if target is not None:
-                    target = target.cuda()
+                    target = target.cuda(device=device.index)
 
             outputs = model(*data)
             
